@@ -5,12 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
-	"github.com/sashabaranov/go-openai"
-	"github.com/twilio/twilio-go/twiml"
 	"io"
 	"os"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
+	"github.com/sashabaranov/go-openai"
+	"github.com/twilio/twilio-go/twiml"
 
 	"log"
 	"net/http"
@@ -52,8 +54,6 @@ type RegisterCallResponse struct {
 }
 
 func main() {
-	os.Setenv("OPENAI_API_KEY", "<open_ai_secret_key>")
-	os.Setenv("RETELL_API_KEY", "<retell_ai_secret_key>")
 	app := gin.Default()
 	app.Any("/llm-websocket/:call_id", Retellwshandler)
 	app.POST("/twilio-webhook/:agent_id", Twiliowebhookhandler)
@@ -61,8 +61,24 @@ func main() {
 	app.Run("localhost:8081")
 }
 
+func GetOpenAISecretKey() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("cannot retrieve env file")
+	}
 
+	return os.Getenv("OPENAI_API_KEY")
+}
 
+func GetRetellAISecretKey() string {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("cannot retrieve env file")
+	}
+
+	return os.Getenv("RETELL_API_KEY")
+
+}
 
 func Twiliowebhookhandler(c *gin.Context) {
 
@@ -90,7 +106,6 @@ func Twiliowebhookhandler(c *gin.Context) {
 		return
 	}
 
-
 	c.Set("Content-Type", "text/xml")
 	c.String(http.StatusOK, twimlResult)
 
@@ -114,7 +129,7 @@ func RegisterRetellCall(agent_id string) (RegisterCallResponse, error) {
 	request_url := "https://api.retellai.com/register-call"
 	method := "POST"
 
-	var bearer = "Bearer " + os.Getenv("RETELL_API_KEY")
+	var bearer = "Bearer " + GetRetellAISecretKey()
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, request_url, payload)
@@ -201,7 +216,7 @@ func Retellwshandler(c *gin.Context) {
 }
 
 func HandleWebsocketMessages(msg Request, conn *websocket.Conn) {
-	client := openai.NewClient(os.Getenv("OPENAI_API_KEY"))
+	client := openai.NewClient(GetOpenAISecretKey())
 
 	if msg.InteractionType == "update_only" {
 		// do nothting

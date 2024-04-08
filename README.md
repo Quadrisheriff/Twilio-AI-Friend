@@ -15,7 +15,7 @@ To run this code, you need:
 ### Run the application
 
 To run the code,
-1. Change `<enter_openai_secret_key>` to your Open AI secret key and change `<enter_retell_ai_secret_key>` to your Retell AI secret key in the `main.go` file.
+1. Update `OPENAI_API_KEY` and `RETELL_API_KEY` in your `.env` file.
 2. Start your Go server. 
    ```
    go run main.go
