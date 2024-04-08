@@ -80,7 +80,7 @@ func Twiliowebhookhandler(c *gin.Context) {
 		Url: "wss://api.re-tell.ai/audio-websocket/" + callinfo.CallID,
 	}
 
-	twiliostart := &twiml.VoiceStart{
+	twiliostart := &twiml.VoiceConnect{
 		InnerElements: []twiml.Element{twilloresponse},
 	}
 
