@@ -54,30 +54,15 @@ type RegisterCallResponse struct {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("cannot retrieve env file")
+	}
 	app := gin.Default()
 	app.Any("/llm-websocket/:call_id", Retellwshandler)
 	app.POST("/twilio-webhook/:agent_id", Twiliowebhookhandler)
 
 	app.Run("localhost:8081")
-}
-
-func GetOpenAISecretKey() string {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("cannot retrieve env file")
-	}
-
-	return os.Getenv("OPENAI_API_KEY")
-}
-
-func GetRetellAISecretKey() string {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("cannot retrieve env file")
-	}
-
-	return os.Getenv("RETELL_API_KEY")
-
 }
 
 func Twiliowebhookhandler(c *gin.Context) {
@@ -129,7 +114,7 @@ func RegisterRetellCall(agent_id string) (RegisterCallResponse, error) {
 	request_url := "https://api.retellai.com/register-call"
 	method := "POST"
 
-	var bearer = "Bearer " + GetRetellAISecretKey()
+	var bearer = "Bearer " + os.Getenv("RETELL_API_KEY")
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, request_url, payload)
@@ -216,7 +201,7 @@ func Retellwshandler(c *gin.Context) {
 }
 
 func HandleWebsocketMessages(msg Request, conn *websocket.Conn) {
-	client := openai.NewClient(GetOpenAISecretKey())
+	client := openai.NewClient(os.Getenv("OPENAI_API_KEY"))
 
 	if msg.InteractionType == "update_only" {
 		// do nothting
