@@ -65,6 +65,16 @@ func main() {
 	app.Run("localhost:8081")
 }
 
+func GetOpenAISecretKey() string {
+
+	return os.Getenv("OPENAI_API_KEY")
+}
+
+func GetRetellAISecretKey() string {
+	return os.Getenv("RETELL_API_KEY")
+
+}
+
 func Twiliowebhookhandler(c *gin.Context) {
 
 	// retrieve agent id from webhook url
@@ -99,8 +109,8 @@ func Twiliowebhookhandler(c *gin.Context) {
 func RegisterRetellCall(agent_id string) (RegisterCallResponse, error) {
 	request := RegisterCallRequest{
 		AgentID:                agent_id,
-		AudioEncoding:          "s16le",
-		SampleRate:             16000,
+		AudioEncoding:          "mulaw",
+		SampleRate:             8000,
 		AudioWebsocketProtocol: "twilio",
 	}
 
@@ -114,7 +124,7 @@ func RegisterRetellCall(agent_id string) (RegisterCallResponse, error) {
 	request_url := "https://api.retellai.com/register-call"
 	method := "POST"
 
-	var bearer = "Bearer " + os.Getenv("RETELL_API_KEY")
+	var bearer = "Bearer " + GetRetellAISecretKey()
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, request_url, payload)
@@ -175,7 +185,6 @@ func Retellwshandler(c *gin.Context) {
 	}
 
 	// create endless loop to handle messages
-
 	for {
 		messageType, ms, err := conn.ReadMessage()
 		if err != nil {
@@ -184,13 +193,10 @@ func Retellwshandler(c *gin.Context) {
 
 			break
 		}
-		log.Println(messageType)
 		// confirm if message type is text
 		if messageType == websocket.TextMessage {
 			var msg Request
 			json.Unmarshal(ms, &msg)
-
-			log.Println(msg)
 
 			// handle message
 			HandleWebsocketMessages(msg, conn)
@@ -201,7 +207,7 @@ func Retellwshandler(c *gin.Context) {
 }
 
 func HandleWebsocketMessages(msg Request, conn *websocket.Conn) {
-	client := openai.NewClient(os.Getenv("OPENAI_API_KEY"))
+	client := openai.NewClient(GetOpenAISecretKey())
 
 	if msg.InteractionType == "update_only" {
 		// do nothting
@@ -231,25 +237,27 @@ func HandleWebsocketMessages(msg Request, conn *websocket.Conn) {
 		response, err := stream.Recv()
 		if err != nil {
 			var s string
-			if errors.Is(err, io.EOF) {
-				if i == 0 {
-					s = "[ERROR] NO RESPONSE, PLEASE RETRY"
-
-				} else {
-					s = "\n\n###### [END] ######"
-				}
-			} else {
+			if (errors.Is(err, io.EOF) && i == 0) || (!errors.Is(err, io.EOF)) {
 				s = "[ERROR] NO RESPONSE, PLEASE RETRY"
 			}
+
+			if errors.Is(err, io.EOF) && i != 0 {
+				s = "\n\n###### [END] ######"
+			}
+
 			airesponse := Response{
 				ResponseID:      msg.ResponseID,
 				Content:         s,
 				ContentComplete: false,
 				EndCall:         false,
 			}
-			log.Println(airesponse)
 
-			out, _ := json.Marshal(airesponse)
+			out, err := json.Marshal(airesponse)
+			if err != nil {
+				log.Println(err)
+				// close websocket conn on error
+				conn.Close()
+			}
 
 			err = conn.WriteMessage(websocket.TextMessage, out)
 			if err != nil {
@@ -269,7 +277,6 @@ func HandleWebsocketMessages(msg Request, conn *websocket.Conn) {
 				ContentComplete: false,
 				EndCall:         false,
 			}
-			log.Println(airesponse)
 
 			out, _ := json.Marshal(airesponse)
 
