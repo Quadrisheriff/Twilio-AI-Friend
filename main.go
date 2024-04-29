@@ -88,7 +88,7 @@ func Twiliowebhookhandler(c *gin.Context) {
 
 	// create voice stream
 	twilloresponse := &twiml.VoiceStream{
-		Url: "wss://api.re-tell.ai/audio-websocket/" + callinfo.CallID,
+		Url: "wss://api.retellai.com/audio-websocket/" + callinfo.CallID,
 	}
 
 	twiliostart := &twiml.VoiceConnect{
@@ -101,7 +101,7 @@ func Twiliowebhookhandler(c *gin.Context) {
 		return
 	}
 
-	c.Set("Content-Type", "text/xml")
+	c.Header("Content-Type", "text/xml")
 	c.String(http.StatusOK, twimlResult)
 
 }
